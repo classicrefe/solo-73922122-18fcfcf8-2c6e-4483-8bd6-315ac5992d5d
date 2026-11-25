@@ -6,6 +6,7 @@ from pathlib import Path
 
 import click
 from flask import current_app, g
+from flask.cli import with_appcontext
 
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
@@ -74,12 +75,36 @@ def initialise() -> None:
 
 
 @click.command("init-db")
+@with_appcontext
 def init_db_command() -> None:
     """Create tables and seed the fixed card/item dictionary."""
     initialise()
     click.echo("Initialised database.")
 
 
+@click.command("backfill-co-stats")
+@with_appcontext
+def backfill_co_stats_command() -> None:
+    """Rebuild two-item co-inspection stats once from original batches."""
+    from . import service
+    from .seed import PAIR_BACKFILL_KEY
+
+    conn = get_db()
+    result = service.rebuild_pair_stats(conn)
+    # Connections run in autocommit mode; rebuild_pair_stats already
+    # committed its own transaction and this upsert commits immediately.
+    conn.execute(
+        "INSERT INTO app_meta(key, value) VALUES(?, '1') "
+        "ON CONFLICT(key) DO UPDATE SET value = '1'",
+        (PAIR_BACKFILL_KEY,),
+    )
+    click.echo(
+        "Co-inspection stats rebuilt: %(positive_pair_rows)d positive pair "
+        "rows, %(both_abnormal_total)d both-abnormal batches." % result
+    )
+
+
 def init_app(app) -> None:
     app.teardown_appcontext(close_db)
     app.cli.add_command(init_db_command)
+    app.cli.add_command(backfill_co_stats_command)

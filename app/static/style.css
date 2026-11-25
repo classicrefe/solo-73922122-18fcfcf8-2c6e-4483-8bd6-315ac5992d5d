@@ -32,3 +32,20 @@ th { background: #f3f5f8; }
 .flash.success { background: #e8f6ec; border: 1px solid #a9d8b6; color: #1d5c30; }
 .error { color: #8a1f1f; }
 ul.plain { list-style: none; padding-left: 0; columns: 2; }
+
+/* Two-item co-inspection */
+.pair-form { display: flex; align-items: end; gap: 1rem; flex-wrap: wrap; }
+.pair-form label { min-width: 13rem; }
+.quicklink { font-size: .9rem; white-space: nowrap; }
+.demo-form { display: flex; align-items: center; gap: .8rem; margin: .8rem 0; flex-wrap: wrap; }
+button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+.pair-matrix { max-width: 34rem; margin: .6rem 0 1rem; }
+.pair-matrix th, .pair-matrix td { text-align: center; }
+.pair-matrix tbody th { text-align: left; background: #f3f5f8; }
+.pair-matrix td { font-size: 1.15rem; font-weight: 650; width: 8rem; }
+.pair-matrix td.hot { background: #fdecec; color: #8a1f1f; }
+tr.included td[data-card-included] { color: #1d5c30; font-weight: 600; }
+tr.excluded { opacity: .72; }
+tr.excluded td[data-card-included] { color: #8a6d1f; }
+.inline-correct { margin-top: .5rem; min-width: 26rem; }
+.inline-correct button { margin-top: .4rem; }

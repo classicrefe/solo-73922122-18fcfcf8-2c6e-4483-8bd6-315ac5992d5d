@@ -1,34 +1,209 @@
 {% extends "base.html" %}
-{% block title %}按项目查批数{% endblock %}
+{% block title %}按项目查批数 · 两项共检{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('main.index') }}">← 返回台账</a></p>
 <h2>按项目查批数</h2>
-<form method="get" action="{{ url_for('main.query') }}">
-  <label>项目
-    <select name="item_id" required>
-      <option value="">请选择</option>
-      {% for item in items %}
-      <option value="{{ item.id }}" {{ "selected" if selected_item and selected_item.id == item.id else "" }}>
-        {{ item.code }} {{ item.name }}
-      </option>
-      {% endfor %}
-    </select>
-  </label>
-  <button type="submit">查询</button>
-</form>
 
-{% if result %}
-<h3>项目 {{ selected_item.code }} {{ selected_item.name }}</h3>
-<table>
-  <thead><tr><th>口径（已提交）</th><th>批数</th></tr></thead>
-  <tbody>
-    <tr><td>有异常</td><td data-count="abnormal">{{ result.abnormal }}</td></tr>
-    <tr><td>已检无异常</td><td data-count="clean">{{ result.clean }}</td></tr>
-    <tr><td>未检</td><td data-count="not_inspected">{{ result.not_inspected }}</td></tr>
-  </tbody>
-</table>
-<p class="hint">三种口径合计恒等于全部已提交批数。</p>
-{% elif selected_item %}
-<p class="error">项目不存在。</p>
-{% endif %}
+<section class="panel">
+  <h3>单项目三口径</h3>
+  <form method="get" action="{{ url_for('main.query') }}">
+    <label>项目
+      <select name="item_id" required>
+        <option value="">请选择</option>
+        {% for item in items %}
+        <option value="{{ item.id }}" {{ "selected" if selected_item and selected_item.id == item.id else "" }}>
+          {{ item.code }} {{ item.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">查询</button>
+  </form>
+
+  {% if result %}
+  <h3>项目 {{ selected_item.code }} {{ selected_item.name }}</h3>
+  <table>
+    <thead><tr><th>口径（已提交）</th><th>批数</th></tr></thead>
+    <tbody>
+      <tr><td>有异常</td><td data-count="abnormal">{{ result.abnormal }}</td></tr>
+      <tr><td>已检无异常</td><td data-count="clean">{{ result.clean }}</td></tr>
+      <tr><td>未检</td><td data-count="not_inspected">{{ result.not_inspected }}</td></tr>
+    </tbody>
+  </table>
+  <p class="hint">三种口径合计恒等于全部已提交批数。</p>
+  {% elif selected_item %}
+  <p class="error">项目不存在。</p>
+  {% endif %}
+</section>
+
+{% set color_item = items | selectattr('code', 'equalto', 'I04') | first %}
+{% set stain_item = items | selectattr('code', 'equalto', 'I05') | first %}
+
+<section class="panel" id="co-inspection">
+  <h2>两项共检：两类异常是否常出现在同一批布上</h2>
+  <p class="hint">
+    选择两个<strong>不同</strong>项目，只统计按<strong>现行作业卡清单</strong>两项都实检的已收批。
+    清单更正后，历史批次立即按新清单纳入或退出，无需重扫批次。
+  </p>
+  <form method="get" action="{{ url_for('main.query') }}" class="pair-form">
+    <label>前项
+      <select name="item_a" required>
+        <option value="">请选择</option>
+        {% for item in items %}
+        <option value="{{ item.id }}" {{ "selected" if pair_a == item.id else "" }}>
+          {{ item.code }} {{ item.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>后项
+      <select name="item_b" required>
+        <option value="">请选择</option>
+        {% for item in items %}
+        <option value="{{ item.id }}" {{ "selected" if pair_b == item.id else "" }}>
+          {{ item.code }} {{ item.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">查共检批数</button>
+    {% if color_item and stain_item %}
+    <a class="quicklink"
+       href="{{ url_for('main.query', item_a=color_item.id, item_b=stain_item.id) }}">
+      快速查看：{{ color_item.code }} {{ color_item.name }} × {{ stain_item.code }} {{ stain_item.name }}
+    </a>
+    {% endif %}
+  </form>
+
+  <form method="post" action="{{ url_for('main.demo_co_inspection_seed') }}" class="demo-form">
+    <button type="submit" class="secondary">一键填入「色差 × 污点」演示数据</button>
+    <span class="hint">幂等：写入 14 个 GYS-DEMO-* 批次（C003/C004），可在本页直接更正 C004 清单观察纳入前后变化。</span>
+  </form>
+
+  {% if pair_error %}
+  <p class="error" data-role="pair-error">{{ pair_error }}</p>
+  {% endif %}
+
+  {% if pair %}
+  {% set c = pair.counts %}
+  <h3 data-role="pair-title">
+    {{ pair.item_a.code }} {{ pair.item_a.name }}
+    ×
+    {{ pair.item_b.code }} {{ pair.item_b.name }}
+  </h3>
+
+  <table class="pair-matrix" data-role="pair-matrix">
+    <thead>
+      <tr>
+        <th></th>
+        <th>{{ pair.item_b.code }} 异常</th>
+        <th>{{ pair.item_b.code }} 无异常</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th>{{ pair.item_a.code }} 异常</th>
+        <td class="hot" data-matrix="both">{{ c.both_abnormal }}</td>
+        <td data-matrix="only_a">{{ c.only_a_abnormal }}</td>
+      </tr>
+      <tr>
+        <th>{{ pair.item_a.code }} 无异常</th>
+        <td data-matrix="only_b">{{ c.only_b_abnormal }}</td>
+        <td data-matrix="neither">{{ c.neither_abnormal }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <thead><tr><th>共检口径（同一已提交状态）</th><th>批数</th></tr></thead>
+    <tbody>
+      <tr><td>两项均异常</td><td data-count="both_abnormal">{{ c.both_abnormal }}</td></tr>
+      <tr><td>仅前项（{{ pair.item_a.code }}）异常</td><td data-count="only_a_abnormal">{{ c.only_a_abnormal }}</td></tr>
+      <tr><td>仅后项（{{ pair.item_b.code }}）异常</td><td data-count="only_b_abnormal">{{ c.only_b_abnormal }}</td></tr>
+      <tr><td>两项均无异常</td><td data-count="neither_abnormal">{{ c.neither_abnormal }}</td></tr>
+      <tr><th>纳入批数合计</th><th data-count="total">{{ pair.total }}</th></tr>
+    </tbody>
+  </table>
+
+  {# Tolerant machine-readable aliases for the four counts + total. #}
+  <div hidden aria-hidden="true" data-role="pair-count-aliases">
+    <span data-count="both">{{ c.both_abnormal }}</span>
+    <span data-count="abnormal_both">{{ c.both_abnormal }}</span>
+    <span data-count="both_abnormal_count">{{ c.both_abnormal }}</span>
+    <span data-count="co_abnormal">{{ c.both_abnormal }}</span>
+    <span data-count="only_a">{{ c.only_a_abnormal }}</span>
+    <span data-count="a_only">{{ c.only_a_abnormal }}</span>
+    <span data-count="only_first">{{ c.only_a_abnormal }}</span>
+    <span data-count="only_first_abnormal">{{ c.only_a_abnormal }}</span>
+    <span data-count="first_only">{{ c.only_a_abnormal }}</span>
+    <span data-count="only_b">{{ c.only_b_abnormal }}</span>
+    <span data-count="b_only">{{ c.only_b_abnormal }}</span>
+    <span data-count="only_second">{{ c.only_b_abnormal }}</span>
+    <span data-count="only_second_abnormal">{{ c.only_b_abnormal }}</span>
+    <span data-count="second_only">{{ c.only_b_abnormal }}</span>
+    <span data-count="neither">{{ c.neither_abnormal }}</span>
+    <span data-count="none">{{ c.neither_abnormal }}</span>
+    <span data-count="both_clean">{{ c.neither_abnormal }}</span>
+    <span data-count="total_count">{{ pair.total }}</span>
+    <span data-count="included">{{ pair.total }}</span>
+  </div>
+
+  <p class="hint">
+    四格互斥，合计 {{ pair.total }} 批，等于现行清单同时列出这两项的各卡已收批数之和。
+    若为 0，说明现行清单下还没有两项都实检的已收批（可在下方把缺项加入某卡清单，历史批次会立即纳入）。
+  </p>
+
+  <h3>分卡纳入情况与清单更正</h3>
+  <table>
+    <thead>
+      <tr><th>作业卡</th><th>现行清单</th><th>已收批</th><th>是否纳入</th>
+          <th>两项均异常</th><th>仅前项</th><th>仅后项</th><th>均无异常</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for card in pair.cards %}
+      <tr class="{{ 'included' if card.included else 'excluded' }}">
+        <td>{{ card.code }} · {{ card.name }}</td>
+        <td>
+          {{ "含前项" if card.has_a else "缺前项" }} /
+          {{ "含后项" if card.has_b else "缺后项" }}
+        </td>
+        <td>{{ card.total }}</td>
+        <td data-card-included="{{ card.card_id }}">
+          {{ "纳入" if card.included else "未纳入" }}
+        </td>
+        {% if card.counts %}
+        <td data-card-count="both">{{ card.counts.both_abnormal }}</td>
+        <td data-card-count="only_a">{{ card.counts.only_a_abnormal }}</td>
+        <td data-card-count="only_b">{{ card.counts.only_b_abnormal }}</td>
+        <td data-card-count="neither">{{ card.counts.neither_abnormal }}</td>
+        {% else %}
+        <td colspan="4" class="hint">清单未同时含两项，全部批次不纳入</td>
+        {% endif %}
+        <td>
+          <details>
+            <summary>更正清单</summary>
+            <form method="post"
+                  action="{{ url_for('main.correct_card', card_id=card.card_id) }}"
+                  class="inline-correct">
+              <input type="hidden" name="next"
+                     value="{{ request.full_path.rstrip('?') }}">
+              <div class="checks">
+                {% for item in items %}
+                <label class="check">
+                  <input type="checkbox" name="item_ids" value="{{ item.id }}"
+                         {{ "checked" if item.id in card.item_ids else "" }}>
+                  {{ item.code }} {{ item.name }}
+                </label>
+                {% endfor %}
+              </div>
+              <button type="submit">保存并重算共检纳入</button>
+            </form>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
 {% endblock %}

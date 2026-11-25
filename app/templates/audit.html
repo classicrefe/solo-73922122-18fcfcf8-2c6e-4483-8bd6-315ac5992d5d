@@ -8,6 +8,8 @@
   <thead><tr><th>项</th><th>值</th></tr></thead>
   <tbody>
     <tr><td>计数不一致的 (卡, 项目) 数</td><td>{{ result.mismatches }}</td></tr>
+    <tr><td>共检「两项均异常」不一致的 (卡, 项目对) 数</td><td data-audit="pair_mismatches">{{ result.pair_mismatches }}</td></tr>
+    <tr><td>共检固定统计行数（卡数 × C(项目数, 2)）</td><td>{{ result.pair_rows }}</td></tr>
     <tr><td>卡已收批数与实际批数不一致的卡数</td><td>{{ result.batch_count_mismatches }}</td></tr>
     <tr><td>清单外的异常明细条数</td><td>{{ result.out_of_list_details }}</td></tr>
     <tr><td>有异常</td><td>{{ result.abnormal }}</td></tr>
@@ -15,4 +17,13 @@
     <tr><td>未检</td><td>{{ result.not_inspected }}</td></tr>
   </tbody>
 </table>
+
+<form method="post" action="{{ url_for('main.audit_backfill_co_stats') }}" class="panel">
+  <h3>旧库共检统计补齐</h3>
+  <p class="hint">
+    从保留的原批次异常明细一次性重算全部「两项均异常」共检行（幂等，可重复执行）。
+    正常升级时应用启动已自动补齐一次；此按钮用于人工强制重建。
+  </p>
+  <button type="submit">从原批次一次补齐 / 强制重建共检统计</button>
+</form>
 {% endblock %}
